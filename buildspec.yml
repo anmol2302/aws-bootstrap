@@ -3,10 +3,11 @@ version: 0.2
 phases:
   install:
     runtime-versions:
-      nodejs: 10
+      nodejs: 18
+    commands:
+      - npm install -g pm2
   pre_build:
     commands:
-      # run 'npm install' using versions in package-lock.json
       - npm ci
   build:
     commands:
