@@ -192,22 +192,6 @@ Resources:
       ResourceSignal:
         Timeout: PT15M
         Count: 1
-    Metadata:
-      AWS::CloudFormation::Init:
-        config:
-          packages: 
-            yum:
-             ruby: []
-              #wget: []
-              #unzip: []
-          files:
-            /home/ec2-user/install:
-              source: !Sub "https://aws-codedeploy-${AWS::Region}.s3.amazonaws.com/latest/install"
-              mode: "000755" # executable
-          commands:
-            00-install-cd-agent:
-              command: "./install auto"
-              cwd: "/home/ec2-user/"
     Properties:
       ImageId: !Ref EC2AMI
       InstanceType: !Ref EC2InstanceType
@@ -221,7 +205,17 @@ Resources:
 
           # send script output to /tmp so we can debug boot failures
           exec > /tmp/userdata.log 2>&1 
+          yum update -y
+          yum install -y ruby wget aws-cli
 
+          # Install CodeDeploy agent
+          cd /home/ec2-user
+          wget https://aws-codedeploy-${AWS::Region}.s3.amazonaws.com/latest/install
+          chmod +x ./install
+          ./install auto
+
+          systemctl enable codedeploy-agent
+          systemctl start codedeploy-agent
           # Update all packages
           yum -y update
 
