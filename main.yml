@@ -1,6 +1,14 @@
 AWSTemplateFormatVersion: 2010-09-09
 
 Parameters:
+  Instance1Identifier:
+    Type: String
+    Default: "Instance1"
+    
+  Instance2Identifier:
+    Type: String
+    Default: "Instance2"
+
   EC2InstanceType:
     Type: String
   EC2AMI:
@@ -210,7 +218,7 @@ Resources:
         Timeout: PT5M
         Count: 1
     Metadata:
-      LaunchTemplateResource: Instance
+      InstanceIdentifier: !Ref Instance1Identifier
     Properties:
       LaunchTemplate:
         LaunchTemplateId: !Ref InstanceLaunchTemplate
@@ -226,7 +234,7 @@ Resources:
         Timeout: PT5M
         Count: 1
     Metadata:
-      LaunchTemplateResource: Instance2
+      InstanceIdentifier: !Ref Instance2Identifier
     Properties:
       LaunchTemplate:
         LaunchTemplateId: !Ref InstanceLaunchTemplate
@@ -300,12 +308,12 @@ Resources:
             #export INSTANCE_ID="`wget -q -O - http://169.254.169.254/latest/meta-data/instance-id`"
 
             # Query EC2 describeTags method and pull our the CFN Logical ID for this instance
-
-            #export LOGICAL_ID=`aws --region ${AWS::Region} ec2 describe-tags --filters "Name=resource-id,Values=${!INSTANCE_ID}" "Name=key,Values=aws:cloudformation:logical-id" | jq -r ".Tags[0].Value"`
-            /opt/aws/bin/cfn-init -v --stack ${AWS::StackName} --region ${AWS::Region} --resource ${LaunchTemplateResource}
-            /opt/aws/bin/cfn-signal -e $? --stack ${AWS::StackName} --region ${AWS::Region} --resource ${LaunchTemplateResource}
+           
+            # export LOGICAL_ID=`aws --region ${AWS::Region} ec2 describe-tags --filters "Name=resource-id,Values=${!INSTANCE_ID}" "Name=key,Values=aws:cloudformation:logical-id" | jq -r ".Tags[0].Value"`
+            # /opt/aws/bin/cfn-init -v --stack ${AWS::StackName} --region ${AWS::Region} --resource ${Instance1Identifier}
+            # /opt/aws/bin/cfn-signal -e $? --stack ${AWS::StackName} --region ${AWS::Region} --resource ${Instance1Identifier}
             # Signal to CloudFormation that the instance is ready
-            #/opt/aws/bin/cfn-signal -e $? --stack ${AWS::StackName} --region ${AWS::Region} --resource ${!LOGICAL_ID}
+            # /opt/aws/bin/cfn-signal -e $? --stack ${AWS::StackName} --region ${AWS::Region} --resource ${!LOGICAL_ID}
 
 Outputs:
  InstanceEndpoint1:
