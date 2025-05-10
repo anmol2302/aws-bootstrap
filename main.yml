@@ -1,14 +1,6 @@
 AWSTemplateFormatVersion: 2010-09-09
 
 Parameters:
-  Instance1Identifier:
-    Type: String
-    Default: "Instance1"
-    
-  Instance2Identifier:
-    Type: String
-    Default: "Instance2"
-
   EC2InstanceType:
     Type: String
   EC2AMI:
@@ -217,8 +209,6 @@ Resources:
       ResourceSignal:
         Timeout: PT5M
         Count: 1
-    Metadata:
-      InstanceIdentifier: !Ref Instance1Identifier
     Properties:
       LaunchTemplate:
         LaunchTemplateId: !Ref InstanceLaunchTemplate
@@ -233,8 +223,6 @@ Resources:
       ResourceSignal:
         Timeout: PT5M
         Count: 1
-    Metadata:
-      InstanceIdentifier: !Ref Instance2Identifier
     Properties:
       LaunchTemplate:
         LaunchTemplateId: !Ref InstanceLaunchTemplate
@@ -245,6 +233,21 @@ Resources:
 
   InstanceLaunchTemplate:
     Type: AWS::EC2::LaunchTemplate
+    Metadata:
+      AWS::CloudFormation::Init:
+        config:
+          packages:
+            yum:
+              ruby: []
+              jq: []
+          files:
+            /home/ec2-user/install:
+              source: !Sub "https://aws-codedeploy-${AWS::Region}.s3.amazonaws.com/latest/install"
+              mode: "000755" # executable
+          commands:
+            00-install-cd-agent:
+              command: "./install auto"
+              cwd: "/home/ec2-user/"
     Properties:
       LaunchTemplateName: !Sub 'LaunchTemplate_${AWS::StackName}'
       LaunchTemplateData:
@@ -263,19 +266,8 @@ Resources:
             # send script output to /tmp so we can debug boot failures
             exec > /tmp/userdata.log 2>&1 
 
-            yum update -y
-            yum install -y ruby wget aws-cli
-  
-            # Install CodeDeploy agent
-            cd /home/ec2-user
-            wget https://aws-codedeploy-${AWS::Region}.s3.amazonaws.com/latest/install
-            chmod +x ./install
-            ./install auto
-  
-            systemctl enable codedeploy-agent
-            systemctl start codedeploy-agent
             # Update all packages
-            yum update -y
+            yum -y update
 
             # Get latest cfn scripts; https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/best-practices.html#cfninit
             yum install -y aws-cfn-bootstrap
@@ -305,15 +297,14 @@ Resources:
             /opt/aws/bin/cfn-init -v --stack ${AWS::StackName} --region ${AWS::Region} --resource InstanceLaunchTemplate
 
             # Query the EC2 metadata service for this instance's instance-id
-            #export INSTANCE_ID="`wget -q -O - http://169.254.169.254/latest/meta-data/instance-id`"
+            export INSTANCE_ID="`wget -q -O - http://169.254.169.254/latest/meta-data/instance-id`"
 
             # Query EC2 describeTags method and pull our the CFN Logical ID for this instance
-           
-            # export LOGICAL_ID=`aws --region ${AWS::Region} ec2 describe-tags --filters "Name=resource-id,Values=${!INSTANCE_ID}" "Name=key,Values=aws:cloudformation:logical-id" | jq -r ".Tags[0].Value"`
-            # /opt/aws/bin/cfn-init -v --stack ${AWS::StackName} --region ${AWS::Region} --resource ${Instance1Identifier}
-            # /opt/aws/bin/cfn-signal -e $? --stack ${AWS::StackName} --region ${AWS::Region} --resource ${Instance1Identifier}
+
+            export LOGICAL_ID=`aws --region ${AWS::Region} ec2 describe-tags --filters "Name=resource-id,Values=${!INSTANCE_ID}" "Name=key,Values=aws:cloudformation:logical-id" | jq -r ".Tags[0].Value"`
+
             # Signal to CloudFormation that the instance is ready
-            # /opt/aws/bin/cfn-signal -e $? --stack ${AWS::StackName} --region ${AWS::Region} --resource ${!LOGICAL_ID}
+            /opt/aws/bin/cfn-signal -e $? --stack ${AWS::StackName} --region ${AWS::Region} --resource ${!LOGICAL_ID}
 
 Outputs:
  InstanceEndpoint1:
