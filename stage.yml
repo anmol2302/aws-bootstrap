@@ -432,7 +432,7 @@ Resources:
       Port: 8443
       Protocol: HTTPS
       VpcId: !Ref VPC
-      HealthCheckEnabled: true
+      HealthCheckEnabled: false
       HealthCheckProtocol: HTTPS
       Tags:
         - Key: Name
