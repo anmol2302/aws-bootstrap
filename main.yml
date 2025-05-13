@@ -1,14 +1,16 @@
 AWSTemplateFormatVersion: 2010-09-09
 
 Parameters:
-  Domain:
-   Type: String
-
   EC2InstanceType:
     Type: String
   EC2AMI:
     Type: 'AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>'
     Default: '/aws/service/ami-amazon-linux-latest/amzn2-ami-hvm-x86_64-gp2'
+  Domain:
+    Type: String
+  Certificate:
+    Type: String
+    Description: 'An existing ACM certificate ARN for your domain'
   CodePipelineBucket:
     Type: String
     Description: 'The S3 bucket for CodePipeline artifacts.'
@@ -25,12 +27,9 @@ Parameters:
   GitHubPersonalAccessToken:
     Type: String
     NoEcho: true
-    Description: 'A GitHub personal access token with "repo" and
-"admin:repo_hook" permissions.'
-
+    Description: 'A GitHub personal access token with "repo" and "admin:repo_hook" permissions.'
 
 Resources:
-
   DeploymentRole:
     Type: AWS::IAM::Role
     Properties:
@@ -45,13 +44,7 @@ Resources:
               - codebuild.amazonaws.com
           Action: sts:AssumeRole
       ManagedPolicyArns:
-        - arn:aws:iam::aws:policy/AmazonS3FullAccess
-        - arn:aws:iam::aws:policy/CloudWatchFullAccess
-        - arn:aws:iam::aws:policy/AmazonEC2ReadOnlyAccess
-        - arn:aws:iam::aws:policy/AWSCodePipeline_FullAccess
-        - arn:aws:iam::aws:policy/AWSCodeDeployDeployerAccess
-        - arn:aws:iam::aws:policy/AWSCodeBuildDeveloperAccess
-        - arn:aws:iam::aws:policy/service-role/AWSCodeDeployRole
+        - arn:aws:iam::aws:policy/PowerUserAccess
 
   BuildProject:
     Type: AWS::CodeBuild::Project
@@ -78,9 +71,9 @@ Resources:
     Properties:
       DeploymentGroupName: staging
       AutoScalingGroups:
-      - !GetAtt Staging.Outputs.ScalingGroup
-      ApplicationName: !Ref DeploymentApplication 
-      DeploymentConfigName: CodeDeployDefault.AllAtOnce 
+        - !GetAtt Staging.Outputs.ScalingGroup
+      ApplicationName: !Ref DeploymentApplication
+      DeploymentConfigName: CodeDeployDefault.AllAtOnce
       ServiceRoleArn: !GetAtt DeploymentRole.Arn
 
   ProdDeploymentGroup:
@@ -88,8 +81,8 @@ Resources:
     Properties:
       DeploymentGroupName: prod
       AutoScalingGroups:
-        - !GetAtt Prod.Outputs.ScalingGroup 
-      ApplicationName: !Ref DeploymentApplication 
+        - !GetAtt Prod.Outputs.ScalingGroup
+      ApplicationName: !Ref DeploymentApplication
       DeploymentConfigName: CodeDeployDefault.OneAtATime
       ServiceRoleArn: !GetAtt DeploymentRole.Arn
 
@@ -148,18 +141,18 @@ Resources:
                 ApplicationName: !Ref DeploymentApplication
                 DeploymentGroupName: !Ref StagingDeploymentGroup
               RunOrder: 1
-        - Name: Prod 
+        - Name: Prod
           Actions:
-            - Name: Prod 
+            - Name: Prod
               InputArtifacts:
-                - Name: Build 
+                - Name: Build
               ActionTypeId:
                 Category: Deploy
                 Owner: AWS
                 Version: 1
                 Provider: CodeDeploy
               Configuration:
-                ApplicationName: !Ref DeploymentApplication 
+                ApplicationName: !Ref DeploymentApplication
                 DeploymentGroupName: !Ref ProdDeploymentGroup
               RunOrder: 1
 
@@ -182,35 +175,35 @@ Resources:
     Type: AWS::CloudFormation::Stack
     Properties:
       TemplateURL: stage.yml
-      TimeoutInMinutes: 30 
+      TimeoutInMinutes: 30
       Parameters:
-        EC2InstanceType: !Ref EC2InstanceType 
-        EC2AMI: !Ref EC2AMI
-        Domain: !Ref Domain 
-        SubDomain: staging  
-     
-  Prod:
-    Type: AWS::CloudFormation::Stack 
-    DependsOn: Staging
-    Properties:
-      TemplateURL: stage.yml 
-      TimeoutInMinutes: 30 
-      Parameters:
-        EC2InstanceType: !Ref EC2InstanceType 
+        EC2InstanceType: !Ref EC2InstanceType
         EC2AMI: !Ref EC2AMI
         Domain: !Ref Domain
-        SubDomain: prod 
+        SubDomain: staging
+        Certificate: !Ref Certificate
+
+  Prod:
+    Type: AWS::CloudFormation::Stack
+    DependsOn: Staging
+    Properties:
+      TemplateURL: stage.yml
+      TimeoutInMinutes: 30
+      Parameters:
+        EC2InstanceType: !Ref EC2InstanceType
+        EC2AMI: !Ref EC2AMI
+        Domain: !Ref Domain
+        SubDomain: prod
+        Certificate: !Ref Certificate
 
 Outputs:
-
-  StagingLBEndpoint:
-    Description: The DNS name for the staging LB 
-    Value: !GetAtt Staging.Outputs.LBEndpoint 
+  StagingHTTPSLBEndpoint:
+    Description: The DNS name for the staging HTTPS LB
+    Value: !GetAtt Staging.Outputs.HTTPSEndpoint
     Export:
-      Name: StagingLBEndpoint
-
-  ProdLBEndpoint:
-    Description: The DNS name for the prod LB 
-    Value: !GetAtt Prod.Outputs.LBEndpoint 
+      Name: StagingHTTPSLBEndpoint
+  ProdHTTPSLBEndpoint:
+    Description: The DNS name for the prod HTTPS LB
+    Value: !GetAtt Prod.Outputs.HTTPSEndpoint
     Export:
-      Name: ProdLBEndpoint
+      Name: ProdHTTPSLBEndpoint

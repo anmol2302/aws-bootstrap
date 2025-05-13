@@ -5,7 +5,9 @@ REGION=us-east-1
 CLI_PROFILE=awsbootstrap
 
 EC2_INSTANCE_TYPE=t2.micro
-DOMAIN=myawslearning.com
+DOMAIN=learnwithanmol.com
+CERT=`aws acm list-certificates --region $REGION --profile awsbootstrap --output text \
+        --query "CertificateSummaryList[?DomainName=='$DOMAIN'].CertificateArn | [0]"`
 AWS_ACCOUNT_ID=`aws sts get-caller-identity --profile awsbootstrap \
         --query "Account" --output text`
 CODEPIPELINE_BUCKET="$STACK_NAME-$REGION-codepipeline-$AWS_ACCOUNT_ID"
@@ -16,7 +18,7 @@ CFN_BUCKET="$STACK_NAME-cfn-$AWS_ACCOUNT_ID"
 GH_ACCESS_TOKEN=$(cat ~/.github/aws-bootstrap-access-token)
 GH_OWNER=$(cat ~/.github/aws-bootstrap-owner)
 GH_REPO=$(cat ~/.github/aws-bootstrap-repo)
-GH_BRANCH=main
+GH_BRANCH=master
 
 # Deploys static resources
 echo -e "\n\n=========== Deploying setup.yml ==========="
